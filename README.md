@@ -1,7 +1,6 @@
-`less`, in a single file
+[less], in a single file
 ========
-
-[Less] in a single file, powered by [musl libc].
+[`less`][less] in a single file, powered by [musl libc].
 
 ```bash
 # Download
