@@ -6,8 +6,9 @@ RUN apk add --no-cache build-base autoconf ncurses-static
 RUN wget https://github.com/gwsw/less/archive/v572.tar.gz -O - | tar -zx
 WORKDIR /less-572
 RUN make -f Makefile.aut
-RUN LDFLAGS=-static ./configure
+RUN CFLAGS=-Os LDFLAGS=-static ./configure
 RUN make -j
+RUN strip less lessecho lesskey
 
 FROM alpine:3.12.3
 RUN apk add --no-cache ncurses-terminfo-base

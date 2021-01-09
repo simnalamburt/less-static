@@ -35,8 +35,9 @@ jobs:
           sudo apt-get install -y musl-tools make autoconf libncurses-dev
           wget 'https://github.com/gwsw/less/archive/${{ needs.check-version.outputs.remote }}.tar.gz' -O - | tar --strip-components=1 -zx
           make -f Makefile.aut
-          LDFLAGS=-static ./configure
+          CFLAGS=-Os LDFLAGS=-static ./configure
           CC=musl-gcc make -j
+          strip less lessecho lesskey
       - name: Publish new release
         id: new_release
         uses: actions/create-release@v1
