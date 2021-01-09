@@ -30,13 +30,14 @@ jobs:
     runs-on: ubuntu-20.04
     needs: [check-version]
     if: needs.check-version.outputs.remote != needs.check-version.outputs.local
+    container: alpine:3.12.3
     steps:
       - run: |
-          sudo apt-get install -y musl-tools make autoconf libncurses-dev
+          apk add --no-cache tar build-base autoconf ncurses-static
           wget 'https://github.com/gwsw/less/archive/${{ needs.check-version.outputs.remote }}.tar.gz' -O - | tar --strip-components=1 -zx
           make -f Makefile.aut
           CFLAGS=-Os LDFLAGS=-static ./configure
-          CC=musl-gcc make -j
+          make -j
           strip less lessecho lesskey
       - name: Publish new release
         id: new_release
