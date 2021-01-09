@@ -1,0 +1,30 @@
+Short version for non-laywers:
+  The less-static project is dual-licensed under Apache 2.0 and MIT terms.
+
+Longer version:
+  Copyright 2021 Hyeon Kim
+
+  Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+  http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+  <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+  option. This file may not be copied, modified, or distributed
+  except according to those terms.
+
+
+The less-static project includes codes written by third parties. The following
+third party codes are included, and carry their own copyright notices and
+license terms:
+
+* The GitHub Actions script (.github/workflows/build.yml) is derived from GitHub
+  Actions script (.github/workflows/autobuild.yml) of awscliv2.appimage project
+  <https://github.com/simnalamburt/awscliv2.appimage/> which is licensed under
+  (Apache-2.0 OR MIT). And the original autobuild.yml is mostly written by
+  Seia-Soto <https://seia.io/>.
+
+    Copyright 2020 Hyeon Kim
+
+    Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+    http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+    <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+    option. This file may not be copied, modified, or distributed
+    except according to those terms.
