@@ -1,0 +1,76 @@
+name: Release watchtower
+on:
+  push:
+  schedule:
+    - cron: '0 */1 * * *'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-20.04
+    outputs:
+      remote: ${{ steps.latest_remote_tag.outputs.ver }}
+      local: ${{ steps.latest_local_release.outputs.ver }}
+    steps:
+      - name: Get latest tag
+        id: latest_remote_tag
+        run: |
+          echo ::set-output name=ver::$(
+            curl -sL 'https://api.github.com/repos/gwsw/less/git/refs/tags' |
+            jq -r '.[-1].ref' | sed 's|^refs/tags/||' | grep -E '^v[0-9]+$'
+          )
+      - name: Check local release
+        id: latest_local_release
+        run: |
+          echo ::set-output name=ver::$(
+            curl -sL 'https://api.github.com/repos/${{ github.repository }}/releases/latest' |
+            jq -r '.tag_name' | grep -E '^v[0-9]+$'
+          )
+
+  build:
+    runs-on: ubuntu-20.04
+    needs: [check-version]
+    if: needs.check-version.outputs.remote != needs.check-version.outputs.local
+    steps:
+      - run: |
+          apt-get install -y musl-tools make autoconf libncurses-dev
+          wget 'https://github.com/gwsw/less/archive/${{ needs.check-version.outputs.remote }}.tar.gz' -O - | tar --strip-components=1 -zx
+          make -f Makefile.aut
+          LDFLAGS=-static ./configure
+          CC=musl-gcc make -j
+      - name: Publish new release
+        id: new_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.check-version.outputs.remote }}
+          release_name: ${{ needs.check-version.outputs.remote }}
+          body: |
+            This build is automated via GitHub Actions.
+            If you find any errors, please open an issue and let me know.
+          draft: false
+          prerelease: false
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.new_release.outputs.upload_url }}
+          asset_path: ./less
+          asset_name: less
+          asset_content_type: application/octet-stream
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.new_release.outputs.upload_url }}
+          asset_path: ./lesskey
+          asset_name: lesskey
+          asset_content_type: application/octet-stream
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.new_release.outputs.upload_url }}
+          asset_path: ./lessecho
+          asset_name: lessecho
+          asset_content_type: application/octet-stream
