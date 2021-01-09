@@ -32,7 +32,7 @@ jobs:
     if: needs.check-version.outputs.remote != needs.check-version.outputs.local
     steps:
       - run: |
-          apt-get install -y musl-tools make autoconf libncurses-dev
+          sudo apt-get install -y musl-tools make autoconf libncurses-dev
           wget 'https://github.com/gwsw/less/archive/${{ needs.check-version.outputs.remote }}.tar.gz' -O - | tar --strip-components=1 -zx
           make -f Makefile.aut
           LDFLAGS=-static ./configure
