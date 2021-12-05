@@ -10,22 +10,23 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       version: ${{ steps.latest.outputs.ver }}
-      need_build: ${{ steps.latest.outputs.ver != steps.latest_local_release.outputs.ver }}
+      need_build: ${{ steps.check.outputs.exists == 'false' }}
     steps:
       - name: Get latest tag
         id: latest
         run: |
-          echo ::set-output name=ver::$(
+          VERSION=$(
             curl -sL 'https://api.github.com/repos/gwsw/less/git/refs/tags' |
-            jq -r '.[-1].ref' | sed 's|^refs/tags/||' | grep -E '^v[0-9]+$'
+            jq -r '.[-1].ref' | sed 's|^refs/tags/v||' | grep -Eo '^[0-9]+$'
           )
-      - name: Check local release
-        id: latest_local_release
-        run: |
-          echo ::set-output name=ver::$(
-            curl -sL 'https://api.github.com/repos/${{ github.repository }}/releases/latest' |
-            jq -r '.tag_name' | grep -E '^v[0-9]+$'
-          )
+          echo "::set-output name=ver::${VERSION}"
+      - name: Check if the tag already exists
+        uses: mukunku/tag-exists-action@v1.0.0
+        id: check
+        with:
+          tag: v${{ steps.latest.outputs.ver }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
     runs-on: ubuntu-20.04
