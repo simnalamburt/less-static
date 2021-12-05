@@ -52,7 +52,7 @@ jobs:
     steps:
       - run: |
           sudo apt-get install -y musl-tools make autoconf libncurses-dev
-          wget 'https://github.com/gwsw/less/archive/${{ needs.prepare.outputs.version }}.tar.gz' -O - | tar --strip-components=1 -zx
+          wget 'https://github.com/gwsw/less/archive/v${{ needs.prepare.outputs.version }}.tar.gz' -O - | tar --strip-components=1 -zx
           make -f Makefile.aut
           CFLAGS=-Os LDFLAGS=-static ./configure
           CC=musl-gcc make -j
