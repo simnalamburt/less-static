@@ -9,11 +9,11 @@ jobs:
   prepare:
     runs-on: ubuntu-20.04
     outputs:
-      version: ${{ steps.latest_remote_tag.outputs.ver }}
-      need_build: ${{ steps.latest_remote_tag.outputs.ver != steps.latest_local_release.outputs.ver }}
+      version: ${{ steps.latest.outputs.ver }}
+      need_build: ${{ steps.latest.outputs.ver != steps.latest_local_release.outputs.ver }}
     steps:
       - name: Get latest tag
-        id: latest_remote_tag
+        id: latest
         run: |
           echo ::set-output name=ver::$(
             curl -sL 'https://api.github.com/repos/gwsw/less/git/refs/tags' |
