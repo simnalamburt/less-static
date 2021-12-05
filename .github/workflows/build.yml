@@ -5,7 +5,7 @@ on:
     - cron: '0 */1 * * *'
 
 jobs:
-  check-version:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
       remote: ${{ steps.latest_remote_tag.outputs.ver }}
@@ -28,12 +28,12 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [check-version]
-    if: needs.check-version.outputs.remote != needs.check-version.outputs.local
+    needs: [prepare]
+    if: needs.prepare.outputs.remote != needs.prepare.outputs.local
     steps:
       - run: |
           sudo apt-get install -y musl-tools make autoconf libncurses-dev
-          wget 'https://github.com/gwsw/less/archive/${{ needs.check-version.outputs.remote }}.tar.gz' -O - | tar --strip-components=1 -zx
+          wget 'https://github.com/gwsw/less/archive/${{ needs.prepare.outputs.remote }}.tar.gz' -O - | tar --strip-components=1 -zx
           make -f Makefile.aut
           CFLAGS=-Os LDFLAGS=-static ./configure
           CC=musl-gcc make -j
@@ -44,8 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ needs.check-version.outputs.remote }}
-          release_name: ${{ needs.check-version.outputs.remote }}
+          tag_name: ${{ needs.prepare.outputs.remote }}
+          release_name: ${{ needs.prepare.outputs.remote }}
           body: |
             This build is automated via GitHub Actions.
             If you find any errors, please open an issue and let me know.
