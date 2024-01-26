@@ -7,7 +7,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.latest.outputs.ver }}
       need_build: ${{ steps.check.outputs.exists == 'false' }}
@@ -17,11 +17,13 @@ jobs:
         run: |
           VERSION=$(
             curl -sL 'https://api.github.com/repos/gwsw/less/git/refs/tags' |
-            jq -r '.[-1].ref' | sed 's|^refs/tags/v||' | grep -Eo '^[0-9]+$'
+            jq -r '.[-1].ref' |
+            sed 's|^refs/tags/v||' |
+            grep -Eo '^[0-9]+$'
           )
-          echo "::set-output name=ver::${VERSION}"
+          echo "ver=${VERSION}" >> "$GITHUB_OUTPUT"
       - name: Check if the tag already exists
-        uses: mukunku/tag-exists-action@v1.0.0
+        uses: mukunku/tag-exists-action@v1.5.0
         id: check
         with:
           tag: v${{ steps.latest.outputs.ver }}
@@ -29,7 +31,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   prepare:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [check]
     if: needs.check.outputs.need_build == 'true'
     outputs:
@@ -53,12 +55,12 @@ jobs:
           prerelease: false
 
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [prepare]
     steps:
       - run: |
           sudo apt-get install -y musl-tools make autoconf libncurses-dev
-          wget 'https://github.com/gwsw/less/archive/v${{ needs.prepare.outputs.version }}.tar.gz' -O - | tar --strip-components=1 -zx
+          curl -L 'https://github.com/gwsw/less/archive/v${{ needs.prepare.outputs.version }}.tar.gz' | tar --strip-components=1 -zx
           make -f Makefile.aut
           CFLAGS=-Os LDFLAGS=-static ./configure
           CC=musl-gcc make -j
