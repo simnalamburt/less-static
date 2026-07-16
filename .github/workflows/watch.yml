@@ -8,84 +8,83 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.latest.outputs.ver }}
       need_build: ${{ steps.check.outputs.exists == 'false' }}
     steps:
       - name: Get latest tag
         id: latest
-        run: |
-          VERSION=$(
-            curl -sL 'https://api.github.com/repos/gwsw/less/git/refs/tags' |
-            jq -r '.[-1].ref' |
-            sed 's|^refs/tags/v||' |
-            grep -Eo '^[0-9]+$'
-          )
-          echo "ver=${VERSION}" >> "$GITHUB_OUTPUT"
-      - name: Check if the tag already exists
-        uses: mukunku/tag-exists-action@v1.5.0
-        id: check
-        with:
-          tag: v${{ steps.latest.outputs.ver }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(
+            gh api --paginate 'repos/gwsw/less/git/refs/tags?per_page=100' \
+              --jq '.[].ref' |
+            sed -nE 's|^refs/tags/v([0-9]+)$|\1|p' |
+            sort -n |
+            tail -n 1
+          )
 
-  prepare:
+          if [[ ! "$VERSION" =~ ^[0-9]+$ ]]; then
+            echo '::error::No numeric less release tag was returned by GitHub'
+            exit 1
+          fi
+
+          echo "ver=${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Check if the release asset already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.latest.outputs.ver }}
+        run: |
+          set -euo pipefail
+          ASSET_EXISTS=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"v${VERSION}\") | any(.assets[]; .name == \"less\")")
+
+          if [[ "$ASSET_EXISTS" == 'true' ]]; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
     runs-on: ubuntu-latest
     needs: [check]
     if: needs.check.outputs.need_build == 'true'
-    outputs:
-      version: ${{ needs.check.outputs.version }}
-      upload_url: ${{ steps.new_release.outputs.upload_url }}
+    permissions:
+      contents: write
     steps:
-      - name: Publish new release
-        id: new_release
-        uses: actions/create-release@v1
+      - name: Build static binaries
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ needs.check.outputs.version }}
-          release_name: v${{ needs.check.outputs.version }}
-          body: |
-            This build is automated via GitHub Actions.
-            If you find any errors, please open an issue and let me know.
-
-            > Outputs will be available later because we're building binary sequentially by arch after publishing the release.
-          draft: false
-          prerelease: false
-
-  build:
-    runs-on: ubuntu-22.04
-    needs: [prepare]
-    steps:
-      - run: |
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
           sudo apt-get install -y musl-tools make autoconf libncurses-dev
-          curl -L 'https://github.com/gwsw/less/archive/v${{ needs.prepare.outputs.version }}.tar.gz' | tar --strip-components=1 -zx
+          curl --fail --show-error --silent --location \
+            "https://github.com/gwsw/less/archive/v${VERSION}.tar.gz" |
+            tar --strip-components=1 -zx
           make -f Makefile.aut
           CFLAGS=-Os LDFLAGS=-static ./configure
           CC=musl-gcc make -j
-          strip less lessecho lesskey
-      - uses: actions/upload-release-asset@v1
+          strip less lessecho
+      - name: Publish release assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: ./less
-          asset_name: less
-          asset_content_type: application/octet-stream
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: ./lesskey
-          asset_name: lesskey
-          asset_content_type: application/octet-stream
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare.outputs.upload_url }}
-          asset_path: ./lessecho
-          asset_name: lessecho
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "v${VERSION}" less lessecho \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "v${VERSION}" less lessecho \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "v${VERSION}" \
+              --notes 'This build is automated via GitHub Actions. If you find any errors, please open an issue and let me know.'
+          fi
